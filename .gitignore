@@ -1,0 +1,27 @@
+# Virtual environment
+.venv/
+venv/
+
+# Robot Framework output
+results/
+public/
+output.xml
+log.html
+report.html
+geckodriver-*.log
+selenium-screenshot-*.png
+browser/screenshot/
+
+# Browser Library downloads Playwright and its node modules under the package
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

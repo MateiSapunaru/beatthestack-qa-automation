@@ -1,0 +1,8 @@
+# The suite is written on Windows and runs in Linux CI. Normalising to LF in
+# the repository keeps diffs clean and keeps Robot Framework's own files
+# byte-identical across both.
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary

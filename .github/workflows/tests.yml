@@ -1,0 +1,123 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # The system under test is a live site, so this suite doubles as monitoring:
+  # a nightly run catches a regression that was deployed rather than committed.
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Robocop
+        run: robocop check
+
+  test:
+    name: robot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      # Browser Library drives Playwright, which needs Node.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Chromium and its system libraries are ~400MB, so they are cached
+      # against the resolved Browser Library version rather than re-downloaded
+      # on every run.
+      - name: Resolve Browser Library version
+        id: browser
+        run: echo "version=$(pip show robotframework-browser | awk '/^Version:/{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.browser.outputs.version }}
+
+      - name: Install Chromium
+        run: rfbrowser init chromium
+
+      - name: Run the suite
+        run: robot --outputdir results --name "Beat The Stack" tests/
+
+      # Uploaded whether the run passed or failed: a failure is exactly when
+      # the log and the failure screenshots are worth having.
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: results/
+          retention-days: 30
+
+      # Only the summary report goes on the public page. The detailed log
+      # embeds every HTTP exchange the run made, response headers included,
+      # and an indexed public page is the wrong home for the raw traffic of a
+      # site somebody else operates. `--log NONE` builds a report that does not
+      # link to a log, so nothing 404s. The full log stays in the artifact
+      # above, which is where it is useful.
+      - name: Build the published report
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          mkdir -p public
+          rebot --log NONE --report public/index.html --name "Beat The Stack" results/output.xml || true
+
+      - name: Package the report
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/
+
+  publish-report:
+    name: publish report
+    needs: test
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

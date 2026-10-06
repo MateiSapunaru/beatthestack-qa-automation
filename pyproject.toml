@@ -1,0 +1,47 @@
+# Robocop static analysis for the Robot Framework sources.
+#
+# Everything Robocop reports that points at a real defect — unused variables,
+# inconsistent variable naming, import order, ambiguous argument syntax — is
+# fixed in the code rather than silenced here. The rules below are switched off
+# deliberately, each for a stated reason.
+
+[tool.robocop.lint]
+ignore = [
+    # Documentation is written where it earns its place: on every suite, on
+    # the tests whose intent is not obvious from the name, and on keywords
+    # with a subtlety worth recording. Requiring it everywhere produces
+    # [Documentation] lines that restate the keyword name, which makes the
+    # genuinely informative ones harder to notice.
+    "DOC01", # missing-doc-keyword
+    "DOC02", # missing-doc-test-case
+
+    # Test names are full sentences on purpose. The report is meant to read as
+    # a list of statements about the site, so the length limit works against
+    # the main thing the report is for.
+    "LEN04", # too-long-test-case-name
+
+    # The long lines are all a single argument: JavaScript passed to
+    # `Evaluate JavaScript`, which cannot be wrapped without changing it.
+    "LEN08", # line-too-long
+
+    # Two data-driven tests walk every published article and assert several
+    # properties per item. Splitting them to satisfy a keyword count would
+    # reopen the page once per assertion for no benefit.
+    "LEN06", # too-many-calls-in-test-case
+
+    # `Set Variable` and `Create Dictionary` rather than Robot Framework 7's
+    # `VAR`. Kept because this suite is also a writing sample: the older form
+    # is the one every reviewer recognises, and nothing here needs `VAR`'s
+    # scope control.
+    "DEPR05", # set-variable-used-instead-of-var
+    "DEPR06", # create-dictionary-used-instead-of-var
+
+    # Resource files are named .robot rather than .resource. The .resource
+    # extension is the better convention; this is a deliberate deferral so the
+    # whole suite shares one extension, and is the first thing to change if
+    # the project grows.
+    "MISC06", # can-be-resource-file
+]
+
+[tool.robocop.format]
+line_length = 100
