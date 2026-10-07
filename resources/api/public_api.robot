@@ -19,6 +19,21 @@ ${API_SESSION}                  btts
 # is attributable rather than looking like a stray bot.
 ${USER_AGENT}                   beatthestack-qa-automation/1.0 (+robotframework)
 
+# Gateway errors are retried; nothing else is.
+#
+# The session's default is to retry only on connection-level failures, which
+# leaves a single transient 502 failing a test outright. That is what happened
+# on one nightly run: one request got a 502 while the requests either side of
+# it succeeded, so a blip of a few seconds turned a green suite red.
+#
+# Three attempts with a widening pause absorb a restart or a brief gateway
+# hiccup. They do not absorb an outage: a site that is actually down still
+# fails the run, which is the signal the nightly schedule exists to produce.
+# 4xx is never retried, so the negative and authorisation tests are unaffected.
+@{RETRY_ON_STATUS}              ${502}    ${503}    ${504}
+${RETRY_ATTEMPTS}               ${3}
+${RETRY_BACKOFF}                ${0.5}
+
 
 *** Keywords ***
 # =============================================================================
@@ -31,12 +46,16 @@ Create Public Api Session
     ...    certificate regression.
     ${headers}=    Create Dictionary    User-Agent=${USER_AGENT}
     Create Session    ${API_SESSION}    ${API_URL}    headers=${headers}    verify=${TRUE}
+    ...    max_retries=${RETRY_ATTEMPTS}    backoff_factor=${RETRY_BACKOFF}
+    ...    retry_status_list=${RETRY_ON_STATUS}
 
 Create Site Session
     [Documentation]    A session rooted at the site origin rather than /api,
     ...    for documents served outside the API prefix.
     ${headers}=    Create Dictionary    User-Agent=${USER_AGENT}
     Create Session    site    ${BASE_URL}    headers=${headers}    verify=${TRUE}
+    ...    max_retries=${RETRY_ATTEMPTS}    backoff_factor=${RETRY_BACKOFF}
+    ...    retry_status_list=${RETRY_ON_STATUS}
 
 # =============================================================================
 # Reads

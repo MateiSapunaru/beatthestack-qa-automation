@@ -91,6 +91,11 @@ At a 375 px viewport:
 | Label filter buttons | ~86×31 | 24×24 ✓ (44×44 ✗) |
 | Carousel buttons | 40×40 | 24×24 ✓ (44×44 ✗) |
 
+Figures are from Chromium on Windows. Font metrics differ by platform, so the
+same controls measure a few pixels smaller on the Linux CI runner — which
+changes the numbers, not the verdict. The test asserts the threshold rather
+than these values, so it holds on either.
+
 WCAG 2.2 SC 2.5.8 (Level AA) sets the floor at 24×24 CSS pixels. The first two
 rows are under it. The criterion does exempt a target spaced far enough from
 its neighbours, which may cover the two header links; it does not cover the
